@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -8,13 +10,17 @@ import '../repositories/item_repository.dart';
 import 'checkout_page.dart';
 
 class HomePage extends StatefulWidget {
-  final ItemRepository repository;
+  final ItemRepository? repository;
+  final List<ItemRepository>? repositories;
   final FavoritesRepository favoritesRepository;
+  final Future<void> Function()? onSignOut;
 
   const HomePage({
     super.key,
-    required this.repository,
+    this.repository,
+    this.repositories,
     required this.favoritesRepository,
+    this.onSignOut,
   });
 
   @override
@@ -27,12 +33,18 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _itemsFuture = widget.repository.getItems();
+    _itemsFuture = _loadItems();
+  }
+
+  Future<List<Item>> _loadItems() async {
+    final sources = widget.repositories ?? [if (widget.repository != null) widget.repository!];
+    final groups = await Future.wait(sources.map((source) => source.getItems()));
+    return groups.expand((items) => items).toList();
   }
 
   void _retry() {
     setState(() {
-      _itemsFuture = widget.repository.getItems();
+      _itemsFuture = _loadItems();
     });
   }
 
@@ -42,6 +54,8 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text('Campus Marketplace'),
         actions: [
+          if (widget.onSignOut != null)
+            IconButton(tooltip: 'ออกจากระบบ', icon: const Icon(Icons.logout), onPressed: widget.onSignOut),
           IconButton(
             tooltip: 'ตะกร้าสินค้า',
             icon: Badge(
@@ -105,15 +119,25 @@ class _HomePageState extends State<HomePage> {
                         height: 48,
                         child: Icon(Icons.inventory_2_outlined),
                       )
-                    : Image.network(
+                    : item.imageUrl.startsWith('http://') ||
+                          item.imageUrl.startsWith('https://')
+                    ? Image.network(
                         item.imageUrl,
                         width: 48,
                         height: 48,
                         fit: BoxFit.cover,
                         errorBuilder: (_, _, _) =>
                             const Icon(Icons.broken_image),
+                      )
+                    : Image.file(
+                        File(item.imageUrl),
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) =>
+                            const Icon(Icons.broken_image),
                       ),
-                title: Text(item.title),
+                title: Row(children: [Expanded(child: Text(item.title)), if (item.sellerId != null) const Chip(label: Text('🎓 ประกาศจริง')) else const Chip(label: Text('🏪 API'))]),
                 subtitle: Text('${item.price.toStringAsFixed(2)} บาท'),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,

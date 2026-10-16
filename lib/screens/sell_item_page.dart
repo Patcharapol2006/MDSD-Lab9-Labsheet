@@ -226,11 +226,7 @@ class _SellItemPageState extends State<SellItemPage> {
             icon: const Icon(Icons.history),
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (_) => MyDraftsPage(
-                  repository: widget.draftRepository,
-                ),
-              ),
+              MaterialPageRoute(builder: (_) => MyDraftsPage(repository: widget.draftRepository)),
             ),
           ),
         ],
